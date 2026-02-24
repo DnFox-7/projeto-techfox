@@ -8,19 +8,22 @@ SUPABASE_URL = "https://msitsrebkgekgqbuclqp.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zaXRzcmVia2dla2dxYnVjbHFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NDE3MzgsImV4cCI6MjA4NjMxNzczOH0.AXZbP1hoCMCIwfHBH6iX98jy4XB2FoJp7P6i73ssq2k"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- 2. CONFIGURAÇÃO GEMINI ---
+# --- 2. CONFIGURAÇÃO GEMINI (CORREÇÃO AQUI) ---
 API_KEY = "AIzaSyBFg4D-C9kYpZVF8TYLDZFMwF_GnBc6y5k"
 genai.configure(api_key=API_KEY)
 
 def get_model():
+    """Busca o modelo disponível dinamicamente para evitar o erro 404"""
     try:
-        modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        for m in modelos:
+        modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # Prioriza versões flash que são mais rápidas para esse tipo de app
+        for m in modelos_disponiveis:
             if "flash" in m: return genai.GenerativeModel(m)
-        return genai.GenerativeModel(modelos[0])
-    except: return genai.GenerativeModel('gemini-1.5-flash')
+        return genai.GenerativeModel(modelos_disponiveis[0])
+    except:
+        return genai.GenerativeModel('gemini-1.5-flash')
 
-# --- 3. UI/UX TECHFOX PREMIUM (VISUAL DIFERENTE) ---
+# --- 3. SEU CSS ORIGINAL MANTIDO ---
 st.set_page_config(page_title="TechFox AI | Assistente Técnico", page_icon="🦊", layout="wide")
 
 st.markdown("""
@@ -87,7 +90,7 @@ def copy_button(text, key):
     </script> """
     components.html(html_code, height=55)
 
-# --- 5. LOG LOGIN (DIFERENTE DO CHEF) ---
+# --- 5. LOG LOGIN ---
 if 'user' not in st.session_state: st.session_state.user = None
 
 if st.session_state.user is None:
@@ -149,14 +152,17 @@ else:
 
         if st.button("GERAR LEGENDA Fox"):
             with st.spinner("IA analisando o reparo..."):
-                model = get_model()
-                prompt = (f"Crie um post para Instagram de assistência técnica de celular {nome_loja}. "
-                          f"Fale sobre o reparo de {servico} no {aparelho}. "
-                          f"Destaque que ficou pronto em {tempo} e tem {garantia} de garantia. "
-                          f"Inclua emojis de tecnologia e hashtags relevantes.")
-                res = model.generate_content(prompt)
-                st.markdown(f'<div class="output-box">{res.text}</div>', unsafe_allow_html=True)
-                copy_button(res.text, "post_fox")
+                try:
+                    model = get_model()
+                    prompt = (f"Crie um post para Instagram de assistência técnica de celular {nome_loja}. "
+                              f"Fale sobre o reparo de {servico} no {aparelho}. "
+                              f"Destaque que ficou pronto em {tempo} e tem {garantia} de garantia. "
+                              f"Inclua emojis de tecnologia e hashtags relevantes.")
+                    res = model.generate_content(prompt)
+                    st.markdown(f'<div class="output-box">{res.text}</div>', unsafe_allow_html=True)
+                    copy_button(res.text, "post_fox")
+                except Exception as e:
+                    st.error(f"Erro na IA: {e}")
 
     # --- FERRAMENTA 2: ORÇAMENTO ---
     elif menu == "💬 Orçamento WhatsApp":
@@ -176,14 +182,18 @@ else:
             st.markdown('</div>', unsafe_allow_html=True)
 
         if st.button("GERAR TEXTO PARA WHATSAPP"):
-            model = get_model()
-            prompt = (f"Atue como um técnico profissional da {nome_loja}. "
-                      f"Gere uma mensagem para WhatsApp para o cliente {cliente} sobre o seu {modelo_cel}. "
-                      f"O problema é {defeito_rel}. O valor é R$ {valor_serv} com entrega em {prazo_serv}. "
-                      f"Seja educado e passe confiança técnica.")
-            res = model.generate_content(prompt)
-            st.markdown(f'<div class="output-box">{res.text}</div>', unsafe_allow_html=True)
-            copy_button(res.text, "zap_fox")
+            with st.spinner("Gerando orçamento..."):
+                try:
+                    model = get_model()
+                    prompt = (f"Atue como um técnico profissional da {nome_loja}. "
+                              f"Gere uma mensagem para WhatsApp para o cliente {cliente} sobre o seu {modelo_cel}. "
+                              f"O problema é {defeito_rel}. O valor é R$ {valor_serv} com entrega em {prazo_serv}. "
+                              f"Seja educado e passe confiança técnica.")
+                    res = model.generate_content(prompt)
+                    st.markdown(f'<div class="output-box">{res.text}</div>', unsafe_allow_html=True)
+                    copy_button(res.text, "zap_fox")
+                except Exception as e:
+                    st.error(f"Erro na IA: {e}")
 
     # --- FERRAMENTA 3: O.S. ---
     elif menu == "📄 Ordem de Serviço (OS)":
